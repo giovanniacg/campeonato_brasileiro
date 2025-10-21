@@ -1,5 +1,5 @@
 import pytest
-from .factories import LeagueDivisionFactory
+from clubs.tests.factories import LeagueDivisionFactory
 
 
 @pytest.mark.django_db

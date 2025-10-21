@@ -1,0 +1,45 @@
+# Byte-code files
+*.pyc
+__pycache__/
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Database
+db.sqlite3
+*.sqlite3
+
+# Media and Static files (if served locally for development)
+media/
+static_collected/
+
+# Local settings and environment variables
+local_settings.py
+.env
+
+# Logs
+*.log
+
+# IDE specific files (e.g., VS Code)
+.vscode/
+
+# Other temporary files
+*.swp
+*~
+.DS_Store
+
+# Django specific
+migrations/  # Only if you are not tracking migrations in your repository (common in reusable apps)
+
+# Python packaging
+.Python
+build/
+dist/
+*.egg-info/
+.tox/
+
+# Test coverage
+.coverage
+htmlcov/

@@ -1,4 +1,5 @@
 import pytest
+from django.db import IntegrityError
 from clubs.models import Team
 from clubs.tests.factories import TeamFactory
 
@@ -7,3 +8,34 @@ from clubs.tests.factories import TeamFactory
 def test_create_team():
     team = TeamFactory()
     assert team.pk is not None
+
+
+@pytest.mark.django_db
+def test_team_fields():
+    team = TeamFactory(
+        name="São Paulo Futebol Clube", short_name="São Paulo", city="São Paulo"
+    )
+    assert team.name == "São Paulo Futebol Clube"
+    assert team.short_name == "São Paulo"
+    assert team.city == "São Paulo"
+
+
+@pytest.mark.django_db
+def test_team_str_representation():
+    team = TeamFactory(name="Clube de Regatas do Flamengo")
+    assert str(team) == "Clube de Regatas do Flamengo"
+
+
+@pytest.mark.django_db
+def test_multiple_teams_creation():
+    teams = TeamFactory.create_batch(5)
+    assert len(teams) == 5
+    for team in teams:
+        assert team.pk is not None
+
+
+@pytest.mark.django_db
+def test_team_unique_names():
+    TeamFactory(name="Palmeiras")
+    with pytest.raises(IntegrityError):
+        TeamFactory(name="Palmeiras")

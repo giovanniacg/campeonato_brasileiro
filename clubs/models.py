@@ -3,9 +3,12 @@ from core.models import BaseModel
 
 
 class Team(BaseModel):
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, unique=True)
     short_name = models.CharField(max_length=50)
     city = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.name
 
 
 class LeagueDivision(BaseModel):

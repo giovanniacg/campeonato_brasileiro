@@ -17,7 +17,7 @@ class Team(BaseModel):
 
 
 class LeagueDivision(BaseModel):
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, unique=True)
     parent_league = models.ForeignKey(
         "self",
         on_delete=models.SET_NULL,
@@ -25,3 +25,6 @@ class LeagueDivision(BaseModel):
         blank=True,
         related_name="subdivisions",
     )
+
+    def __str__(self):
+        return self.name

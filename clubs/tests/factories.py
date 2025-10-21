@@ -10,8 +10,6 @@ class TeamFactory(DjangoModelFactory):
         model = Team
 
     name = Faker("name", locale="pt_BR")
-    short_name = Faker("word", locale="pt_BR")
-    city = Faker("city", locale="pt_BR")
     league_division = SubFactory("clubs.tests.factories.LeagueDivisionFactory")
 
 

@@ -11,16 +11,6 @@ def test_create_team():
 
 
 @pytest.mark.django_db
-def test_team_fields():
-    team = TeamFactory(
-        name="São Paulo Futebol Clube", short_name="São Paulo", city="São Paulo"
-    )
-    assert team.name == "São Paulo Futebol Clube"
-    assert team.short_name == "São Paulo"
-    assert team.city == "São Paulo"
-
-
-@pytest.mark.django_db
 def test_team_str_representation():
     team = TeamFactory(name="Clube de Regatas do Flamengo")
     assert str(team) == "Clube de Regatas do Flamengo"

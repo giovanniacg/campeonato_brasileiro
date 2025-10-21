@@ -6,6 +6,11 @@ class Team(BaseModel):
     name = models.CharField(max_length=100, unique=True)
     short_name = models.CharField(max_length=50)
     city = models.CharField(max_length=100)
+    league_division = models.ForeignKey(
+        "LeagueDivision",
+        on_delete=models.CASCADE,
+        related_name="teams",
+    )
 
     def __str__(self):
         return self.name

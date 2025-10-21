@@ -11,3 +11,11 @@ class LeagueSeason(BaseModel):
         blank=True,
         related_name="subseason",
     )
+
+    def __str__(self) -> str:
+        return f"{self.year}"
+
+    def save(self, *args, **kwargs):
+        if self.parent_league and self.parent_league.pk == self.pk:
+            raise ValueError("Uma liga não pode ser seu próprio ancestral.")
+        super().save(*args, **kwargs)

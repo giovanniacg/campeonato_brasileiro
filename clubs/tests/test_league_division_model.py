@@ -1,4 +1,5 @@
 import pytest
+from django.db import IntegrityError
 from clubs.tests.factories import LeagueDivisionFactory, TeamFactory
 
 
@@ -13,6 +14,19 @@ def test_league_division_parent_league():
     parent_league = LeagueDivisionFactory()
     child_league = LeagueDivisionFactory(parent_league=parent_league)
     assert child_league.parent_league == parent_league
+
+
+@pytest.mark.django_db
+def test_league_division_str_representation():
+    league_division = LeagueDivisionFactory(name="Série A")
+    assert str(league_division) == "Série A"
+
+
+@pytest.mark.django_db
+def test_league_division_unique_names():
+    LeagueDivisionFactory(name="Série B")
+    with pytest.raises(IntegrityError):
+        LeagueDivisionFactory(name="Série B")
 
 
 @pytest.mark.django_db

@@ -17,3 +17,4 @@ class LeagueDivisionFactory(DjangoModelFactory):
 
     name = Faker("word", locale="pt_BR")
     parent_league = None
+    season = None

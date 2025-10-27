@@ -23,21 +23,6 @@ def test_fixture_generator_requires_at_least_two_teams():
 
 
 @pytest.mark.django_db
-def test_fixture_generator_requires_even_number_of_teams():
-    season = LeagueSeasonFactory(year=2024)
-    division = LeagueDivisionFactory(season=season)
-    teams = TeamFactory.create_batch(3)
-    division.teams.add(*teams)
-
-    generator = FixtureGeneratorService(division)
-
-    with pytest.raises(ValueError) as exc_info:
-        generator.generate_fixtures()
-
-    assert "par" in str(exc_info.value).lower()
-
-
-@pytest.mark.django_db
 def test_fixture_generator_creates_correct_number_of_matches():
     season = LeagueSeasonFactory(year=2024)
     division = LeagueDivisionFactory(season=season)
@@ -48,6 +33,20 @@ def test_fixture_generator_creates_correct_number_of_matches():
     matches = generator.generate_fixtures()
 
     expected_matches = 4 * (4 - 1)
+    assert len(matches) == expected_matches
+
+
+@pytest.mark.django_db
+def test_fixture_generator_works_with_odd_number_of_teams():
+    season = LeagueSeasonFactory(year=2024)
+    division = LeagueDivisionFactory(season=season)
+    teams = TeamFactory.create_batch(5)
+    division.teams.add(*teams)
+
+    generator = FixtureGeneratorService(division)
+    matches = generator.generate_fixtures()
+
+    expected_matches = 5 * (5 - 1)
     assert len(matches) == expected_matches
 
 
@@ -117,20 +116,6 @@ def test_fixture_generator_all_matches_are_scheduled():
     season = LeagueSeasonFactory(year=2024)
     division = LeagueDivisionFactory(season=season)
     teams = TeamFactory.create_batch(4)
-    division.teams.add(*teams)
-
-    generator = FixtureGeneratorService(division)
-    matches = generator.generate_fixtures()
-
-    for match in matches:
-        assert match.status == Status.SCHEDULED
-
-
-@pytest.mark.django_db
-def test_fixture_generator_all_matches_are_scheduled_odd():
-    season = LeagueSeasonFactory(year=2024)
-    division = LeagueDivisionFactory(season=season)
-    teams = TeamFactory.create_batch(3)
     division.teams.add(*teams)
 
     generator = FixtureGeneratorService(division)

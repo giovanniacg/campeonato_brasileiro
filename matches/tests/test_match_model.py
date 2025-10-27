@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError
 from matches.tests.factories import MatchFactory
 from matches.models import Status
 from clubs.tests.factories import TeamFactory
+from leagues.tests.factories import LeagueDivisionFactory
 
 
 @pytest.mark.django_db
@@ -227,3 +228,115 @@ def test_match_points_are_zero_before_finish():
 
     assert match.home_points == 0
     assert match.away_points == 0
+
+
+@pytest.mark.django_db
+def test_can_create_home_and_away_matches_same_teams():
+    team1 = TeamFactory(name="Flamengo")
+    team2 = TeamFactory(name="Palmeiras")
+    division = LeagueDivisionFactory()
+
+    match1 = MatchFactory(home_team=team1, away_team=team2, league_division=division)
+    match2 = MatchFactory(home_team=team2, away_team=team1, league_division=division)
+
+    assert match1.pk is not None
+    assert match2.pk is not None
+
+
+@pytest.mark.django_db
+def test_cannot_create_duplicate_home_match():
+    team1 = TeamFactory(name="Corinthians")
+    team2 = TeamFactory(name="Santos")
+    division = LeagueDivisionFactory()
+
+    MatchFactory(
+        home_team=team1,
+        away_team=team2,
+        league_division=division,
+        status=Status.SCHEDULED,
+    )
+
+    with pytest.raises(ValidationError) as exc_info:
+        match2 = MatchFactory.build(
+            home_team=team1, away_team=team2, league_division=division
+        )
+        match2.save()
+
+    assert "já existe" in str(exc_info.value).lower()
+
+
+@pytest.mark.django_db
+def test_cannot_create_duplicate_away_match():
+    team1 = TeamFactory(name="São Paulo")
+    team2 = TeamFactory(name="Grêmio")
+    division = LeagueDivisionFactory()
+
+    MatchFactory(
+        home_team=team1,
+        away_team=team2,
+        league_division=division,
+        status=Status.FINISHED,
+    )
+
+    with pytest.raises(ValidationError) as exc_info:
+        match2 = MatchFactory.build(
+            home_team=team1, away_team=team2, league_division=division
+        )
+        match2.save()
+
+    assert "já existe" in str(exc_info.value).lower()
+
+
+@pytest.mark.django_db
+def test_can_create_match_if_previous_was_cancelled():
+    team1 = TeamFactory(name="Atlético-MG")
+    team2 = TeamFactory(name="Cruzeiro")
+    division = LeagueDivisionFactory()
+
+    match1 = MatchFactory(
+        home_team=team1,
+        away_team=team2,
+        league_division=division,
+        status=Status.SCHEDULED,
+    )
+    match1.cancel()
+
+    match2 = MatchFactory(home_team=team1, away_team=team2, league_division=division)
+
+    assert match2.pk is not None
+
+
+@pytest.mark.django_db
+def test_cannot_duplicate_match_in_progress():
+    team1 = TeamFactory(name="Botafogo")
+    team2 = TeamFactory(name="Vasco")
+    division = LeagueDivisionFactory()
+
+    MatchFactory(
+        home_team=team1,
+        away_team=team2,
+        league_division=division,
+        status=Status.IN_PROGRESS,
+    )
+
+    with pytest.raises(ValidationError) as exc_info:
+        match2 = MatchFactory.build(
+            home_team=team1, away_team=team2, league_division=division
+        )
+        match2.save()
+
+    assert "já existe" in str(exc_info.value).lower()
+
+
+@pytest.mark.django_db
+def test_can_have_matches_in_different_divisions():
+    team1 = TeamFactory(name="Internacional")
+    team2 = TeamFactory(name="Juventude")
+    division1 = LeagueDivisionFactory(name="Série A")
+    division2 = LeagueDivisionFactory(name="Copa do Brasil")
+
+    match1 = MatchFactory(home_team=team1, away_team=team2, league_division=division1)
+    match2 = MatchFactory(home_team=team1, away_team=team2, league_division=division2)
+
+    assert match1.pk is not None
+    assert match2.pk is not None

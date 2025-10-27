@@ -19,3 +19,17 @@ class LeagueSeason(BaseModel):
         if self.parent_league and self.parent_league.pk == self.pk:
             raise ValueError("Uma liga não pode ser seu próprio ancestral.")
         super().save(*args, **kwargs)
+
+
+class LeagueDivision(BaseModel):
+    name = models.CharField(max_length=100, unique=True)
+    parent_league = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="subdivisions",
+    )
+
+    def __str__(self):
+        return self.name

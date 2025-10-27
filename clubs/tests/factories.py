@@ -9,4 +9,4 @@ class TeamFactory(DjangoModelFactory):
         model = Team
 
     name = Faker("name", locale="pt_BR")
-    league_division = SubFactory("clubs.tests.factories.LeagueDivisionFactory")
+    league_division = SubFactory("leagues.tests.factories.LeagueDivisionFactory")

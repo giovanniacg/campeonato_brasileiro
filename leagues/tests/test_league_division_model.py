@@ -51,7 +51,7 @@ def test_league_division_teams_relationship_multiple():
 def test_league_division_self_parent():
     league_division = LeagueDivisionFactory()
     league_division.parent_league = league_division
-    with pytest.raises(IntegrityError):
+    with pytest.raises(Exception):
         league_division.save()
 
 

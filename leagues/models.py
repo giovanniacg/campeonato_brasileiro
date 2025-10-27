@@ -23,13 +23,25 @@ class LeagueSeason(BaseModel):
 
 class LeagueDivision(BaseModel):
     name = models.CharField(max_length=100, unique=True)
-    parent_league = models.ForeignKey(
+    parent_league = models.OneToOneField(
         "self",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="subdivisions",
     )
+    season = models.ForeignKey(
+        LeagueSeason,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="divisions",
+    )
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        if self.parent_league and self.parent_league.pk == self.pk:
+            raise ValueError("Uma divisão não pode ser sua própria ancestral.")
+        super().save(*args, **kwargs)

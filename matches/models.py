@@ -51,6 +51,53 @@ class Match(BaseModel):
         self.full_clean()
         super().save(*args, **kwargs)
 
+    def start(self):
+        if self.status == Status.IN_PROGRESS:
+            raise ValidationError("A partida já está em andamento.")
+        if self.status == Status.FINISHED:
+            raise ValidationError("A partida já está finalizada.")
+        self.status = Status.IN_PROGRESS
+        self.save(update_fields=["status"])
+
+    def record_a_goal(self, type: str = "home"):
+        if self.status != Status.IN_PROGRESS:
+            raise ValidationError(
+                "A partida deve estar em andamento para registrar gols."
+            )
+        if type == "home":
+            self.home_score = (self.home_score or 0) + 1
+            self.save(update_fields=["home_score"])
+        elif type == "away":
+            self.away_score = (self.away_score or 0) + 1
+            self.save(update_fields=["away_score"])
+        else:
+            raise ValidationError("Tipo de gol desconhecido. Use 'home' ou 'away'.")
+
+    def finish(self):
+        if self.status != Status.IN_PROGRESS:
+            raise ValidationError(
+                "A partida precisa estar em andamento para ser finalizada."
+            )
+        self.status = Status.FINISHED
+        self.save(update_fields=["status"])
+        return self.get_winner()
+
+    def get_winner(self):
+        if self.home_score > self.away_score:
+            return self.home_team
+        if self.away_score > self.home_score:
+            return self.away_team
+        return None
+
+    def is_draw(self) -> bool:
+        return self.home_score == self.away_score
+
+    def cancel(self):
+        if self.status == Status.FINISHED:
+            raise ValidationError("Não é possível cancelar uma partida já finalizada.")
+        self.status = Status.CANCELLED
+        self.save(update_fields=["status"])
+
     class Meta:
         verbose_name = "Partida"
         verbose_name_plural = "Partidas"

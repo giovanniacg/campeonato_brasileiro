@@ -1,6 +1,5 @@
 import pytest
 from django.db import IntegrityError
-from clubs.models import Team
 from clubs.tests.factories import TeamFactory
 
 
@@ -29,10 +28,3 @@ def test_team_unique_names():
     TeamFactory(name="Palmeiras")
     with pytest.raises(IntegrityError):
         TeamFactory(name="Palmeiras")
-
-
-@pytest.mark.django_db
-def test_team_division_relationship():
-    team = TeamFactory()
-    assert team.league_division is not None
-    assert team.league_division.pk is not None

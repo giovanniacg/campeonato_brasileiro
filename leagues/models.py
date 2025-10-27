@@ -33,9 +33,12 @@ class LeagueDivision(BaseModel):
     season = models.ForeignKey(
         LeagueSeason,
         on_delete=models.PROTECT,
-        null=True,
-        blank=True,
         related_name="divisions",
+    )
+    teams = models.ManyToManyField(
+        "clubs.Team",
+        related_name="league_divisions",
+        blank=True,
     )
 
     def __str__(self):

@@ -1,6 +1,5 @@
 from factory.django import DjangoModelFactory
-from factory.faker import Faker
-from factory.declarations import SubFactory
+from factory.declarations import SubFactory, Sequence
 from leagues.models import LeagueSeason, LeagueDivision
 
 
@@ -8,7 +7,7 @@ class LeagueSeasonFactory(DjangoModelFactory):
     class Meta:
         model = LeagueSeason
 
-    year = Faker("year")
+    year = Sequence(lambda n: 2000 + n)
     parent_league = None
 
 
@@ -16,7 +15,6 @@ class LeagueDivisionFactory(DjangoModelFactory):
     class Meta:
         model = LeagueDivision
 
-    name = Faker("word", locale="pt_BR")
+    name = Sequence(lambda n: f"Divisão {n}")
     parent_league = None
     season = SubFactory(LeagueSeasonFactory)
-    teams = []

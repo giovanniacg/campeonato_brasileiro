@@ -1,5 +1,6 @@
 import pytest
 from django.db import IntegrityError
+from django.core.exceptions import ValidationError
 from leagues.tests.factories import LeagueDivisionFactory, LeagueSeasonFactory
 from clubs.tests.factories import TeamFactory
 
@@ -60,26 +61,34 @@ def test_team_division_retrieval():
 @pytest.mark.django_db
 def test_team_multiple_divisions_in_same_season():
     season = LeagueSeasonFactory(year=2023)
-    league_division1 = LeagueDivisionFactory(name="Série A", season=season)
-    league_division2 = LeagueDivisionFactory(name="Série B", season=season)
+    league_division1 = LeagueDivisionFactory(name="Série A 2023", season=season)
+    league_division2 = LeagueDivisionFactory(name="Série B 2023", season=season)
     team = TeamFactory()
     league_division1.teams.add(team)
-    with pytest.raises(IntegrityError):
-        league_division2.teams.add(team)
+    league_division2.teams.add(team)
+    team.refresh_from_db()
+
+    with pytest.raises(ValidationError) as exc_info:
+        team.full_clean()
+
+    assert "já está registrado em outra divisão" in str(exc_info.value)
 
 
 @pytest.mark.django_db
 def test_team_multiple_divisions_in_different_seasons():
     season1 = LeagueSeasonFactory(year=2022)
     season2 = LeagueSeasonFactory(year=2023)
-    league_division1 = LeagueDivisionFactory(name="Série A", season=season1)
-    league_division2 = LeagueDivisionFactory(name="Série A", season=season2)
+    league_division1 = LeagueDivisionFactory(name="Série A 2022", season=season1)
+    league_division2 = LeagueDivisionFactory(name="Série A 2023", season=season2)
     team = TeamFactory()
     league_division1.teams.add(team)
-    try:
-        league_division2.teams.add(team)
-    except IntegrityError:
-        pytest.fail("Team should be able to join divisions in different seasons")
+    league_division2.teams.add(team)
+    team.refresh_from_db()
+
+    team.full_clean()
+
+    assert team in league_division1.teams.all()
+    assert team in league_division2.teams.all()
 
 
 @pytest.mark.django_db
@@ -99,8 +108,8 @@ def test_league_division_season_relationship():
 
 @pytest.mark.django_db
 def test_league_division_no_season():
-    league_division = LeagueDivisionFactory(season=None)
-    assert league_division.season is None
+    with pytest.raises(IntegrityError):
+        LeagueDivisionFactory(season=None)
 
 
 @pytest.mark.django_db

@@ -1,9 +1,11 @@
 from typing import Dict, List
+from datetime import datetime
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from clubs.models import LeagueDivision, Team
+from clubs.models import Team
+from leagues.models import LeagueDivision, LeagueSeason
 
 
 class Command(BaseCommand):
@@ -166,28 +168,23 @@ class Command(BaseCommand):
             self.style.MIGRATE_HEADING("Iniciando seed do Campeonato Brasileiro...")
         )
 
-        serie_a = self._get_or_create_division(
-            "Série A",
-        )
-        serie_b = self._get_or_create_division(
-            "Série B",
-            parent=serie_a,
-        )
-        serie_c = self._get_or_create_division(
-            "Série C",
-            parent=serie_b,
-        )
-        serie_d = self._get_or_create_division(
-            "Série D",
-            parent=serie_c,
-        )
+        current_year = datetime.now().year
+        season, created = LeagueSeason.objects.get_or_create(year=current_year)
 
-        # 2) Popula A, B, C
+        if created:
+            self.stdout.write(self.style.SUCCESS(f"Season {current_year} criada."))
+        else:
+            self.stdout.write(self.style.NOTICE(f"Season {current_year} já existe."))
+
+        serie_a = self._get_or_create_division("Série A", season=season)
+        serie_b = self._get_or_create_division("Série B", parent=serie_a, season=season)
+        serie_c = self._get_or_create_division("Série C", parent=serie_b, season=season)
+        serie_d = self._get_or_create_division("Série D", parent=serie_c, season=season)
+
         self._seed_series(serie_a, "Série A")
         self._seed_series(serie_b, "Série B")
         self._seed_series(serie_c, "Série C")
 
-        # 3) Popula Série D por regiões e estados
         self._seed_serie_d(serie_d)
 
         self.stdout.write(
@@ -195,16 +192,22 @@ class Command(BaseCommand):
         )
 
     def _get_or_create_division(
-        self, name: str, parent: LeagueDivision | None = None
+        self, name: str, season: LeagueSeason, parent: LeagueDivision | None = None
     ) -> LeagueDivision:
         obj, created = LeagueDivision.objects.get_or_create(
             name=name,
-            defaults={"parent_league": parent},
+            defaults={"parent_league": parent, "season": season},
         )
-        if not created and parent and obj.parent_league_id != parent.id:
-            # Garante hierarquia correta se já existir com outro parent
-            obj.parent_league = parent
-            obj.save(update_fields=["parent_league"])
+        if not created:
+            update_fields = []
+            if parent and obj.parent_league_id != parent.id:
+                obj.parent_league = parent
+                update_fields.append("parent_league")
+            if obj.season_id != season.id:
+                obj.season = season
+                update_fields.append("season")
+            if update_fields:
+                obj.save(update_fields=update_fields)
         return obj
 
     def _seed_series(self, division: LeagueDivision, key: str) -> None:
@@ -217,42 +220,36 @@ class Command(BaseCommand):
         self.stdout.write(self.style.NOTICE("Populando Série D (regiões/estados)..."))
 
         for region, states in self.SERIE_D.items():
-            region_div = self._get_or_create_division(region, parent=serie_d)
-
+            self.stdout.write(self.style.NOTICE(f" Região: {region}"))
             for state, teams in states.items():
-                state_div = self._get_or_create_division(state, parent=region_div)
                 uf = self.UF_MAP.get(state)
                 for team_name in teams:
-                    self._create_team_if_possible(f"{team_name}-{uf}", state_div)
+                    self._create_team_if_possible(f"{team_name}-{uf}", serie_d)
 
     def _create_team_if_possible(
         self, team_name: str, division: LeagueDivision, log_on_skip: bool = True
     ) -> bool:
-        """Cria um Team se não existir outro com o mesmo nome em qualquer divisão.
-        Retorna True se criou, False se já existia (neste caso não altera a divisão existente).
-        """
-        try:
-            obj, created = Team.objects.get_or_create(
-                name=team_name,
-                defaults={"league_division": division},
-            )
-        except Exception as exc:  # proteção extra contra validações inesperadas
-            self.stdout.write(
-                self.style.WARNING(f"[WARN] Falha ao criar '{team_name}': {exc}")
-            )
-            return False
+        team, created = Team.objects.get_or_create(name=team_name)
 
         if created:
+            division.teams.add(team)
             self.stdout.write(
                 self.style.SUCCESS(f" [+] {team_name} -> {division.name}")
             )
             return True
 
-        # Já existe um time com esse nome; mantém na divisão original
+        existing_divisions = team.league_divisions.all()
+        if division not in existing_divisions:
+            division.teams.add(team)
+            self.stdout.write(
+                self.style.SUCCESS(f" [+] {team_name} adicionado em -> {division.name}")
+            )
+            return True
+
         if log_on_skip:
             self.stdout.write(
                 self.style.WARNING(
-                    f" [=] '{team_name}' já existe em '{obj.league_division.name}', mantendo e não duplicando."
+                    f" [=] '{team_name}' já existe em '{division.name}', mantendo."
                 )
             )
         return False

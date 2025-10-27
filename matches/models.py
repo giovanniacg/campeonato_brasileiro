@@ -49,6 +49,24 @@ class Match(BaseModel):
         ):
             raise ValidationError("Um time não pode jogar contra si mesmo.")
 
+        if self.home_team_id and self.away_team_id and self.league_division_id:
+            existing_match = (
+                Match.objects.filter(
+                    home_team_id=self.home_team_id,
+                    away_team_id=self.away_team_id,
+                    league_division_id=self.league_division_id,
+                )
+                .exclude(status=Status.CANCELLED)
+                .exclude(pk=self.pk)
+                .first()
+            )
+
+            if existing_match:
+                raise ValidationError(
+                    f"Já existe uma partida entre {self.home_team.name} (casa) "
+                    f"e {self.away_team.name} (fora) nesta divisão."
+                )
+
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)

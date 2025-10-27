@@ -98,6 +98,20 @@ class Match(BaseModel):
         self.status = Status.CANCELLED
         self.save(update_fields=["status"])
 
+    def calculate_points(self):
+        if self.status != Status.FINISHED:
+            raise ValidationError(
+                "Só é possível calcular pontos de partidas finalizadas."
+            )
+
+        if self.is_draw():
+            return (1, 1)
+
+        if self.home_score > self.away_score:
+            return (3, 0)
+
+        return (0, 3)
+
     class Meta:
         verbose_name = "Partida"
         verbose_name_plural = "Partidas"

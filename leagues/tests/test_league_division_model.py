@@ -1,6 +1,7 @@
 import pytest
 from django.db import IntegrityError
-from clubs.tests.factories import LeagueDivisionFactory, TeamFactory
+from leagues.tests.factories import LeagueDivisionFactory
+from clubs.tests.factories import TeamFactory
 
 
 @pytest.mark.django_db

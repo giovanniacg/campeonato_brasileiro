@@ -186,46 +186,44 @@ def test_match_cannot_cancel_if_finished():
 
 
 @pytest.mark.django_db
-def test_match_calculate_points_home_win():
-    match = MatchFactory(status=Status.FINISHED, home_score=3, away_score=1)
-    home_points, away_points = match.calculate_points()
+def test_match_finish_calculates_points_home_win():
+    match = MatchFactory(status=Status.IN_PROGRESS, home_score=3, away_score=1)
+    match.finish()
 
-    assert home_points == 3
-    assert away_points == 0
-
-
-@pytest.mark.django_db
-def test_match_calculate_points_away_win():
-    match = MatchFactory(status=Status.FINISHED, home_score=1, away_score=2)
-    home_points, away_points = match.calculate_points()
-
-    assert home_points == 0
-    assert away_points == 3
+    assert match.home_points == 3
+    assert match.away_points == 0
 
 
 @pytest.mark.django_db
-def test_match_calculate_points_draw():
-    match = MatchFactory(status=Status.FINISHED, home_score=2, away_score=2)
-    home_points, away_points = match.calculate_points()
+def test_match_finish_calculates_points_away_win():
+    match = MatchFactory(status=Status.IN_PROGRESS, home_score=1, away_score=2)
+    match.finish()
 
-    assert home_points == 1
-    assert away_points == 1
-
-
-@pytest.mark.django_db
-def test_match_calculate_points_only_for_finished():
-    match = MatchFactory(status=Status.IN_PROGRESS, home_score=2, away_score=1)
-
-    with pytest.raises(ValidationError) as exc_info:
-        match.calculate_points()
-
-    assert "finalizada" in str(exc_info.value).lower()
+    assert match.home_points == 0
+    assert match.away_points == 3
 
 
 @pytest.mark.django_db
-def test_match_calculate_points_zero_zero_draw():
-    match = MatchFactory(status=Status.FINISHED, home_score=0, away_score=0)
-    home_points, away_points = match.calculate_points()
+def test_match_finish_calculates_points_draw():
+    match = MatchFactory(status=Status.IN_PROGRESS, home_score=2, away_score=2)
+    match.finish()
 
-    assert home_points == 1
-    assert away_points == 1
+    assert match.home_points == 1
+    assert match.away_points == 1
+
+
+@pytest.mark.django_db
+def test_match_finish_calculates_points_zero_zero_draw():
+    match = MatchFactory(status=Status.IN_PROGRESS, home_score=0, away_score=0)
+    match.finish()
+
+    assert match.home_points == 1
+    assert match.away_points == 1
+
+
+@pytest.mark.django_db
+def test_match_points_are_zero_before_finish():
+    match = MatchFactory(status=Status.IN_PROGRESS, home_score=3, away_score=1)
+
+    assert match.home_points == 0
+    assert match.away_points == 0

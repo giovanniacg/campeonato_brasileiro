@@ -34,6 +34,8 @@ class Match(BaseModel):
     )
     home_score = models.PositiveIntegerField(default=0)
     away_score = models.PositiveIntegerField(default=0)
+    home_points = models.PositiveIntegerField(default=0)
+    away_points = models.PositiveIntegerField(default=0)
 
     def __str__(self):
         return f"{self.home_team.name} vs {self.away_team.name}"
@@ -79,7 +81,8 @@ class Match(BaseModel):
                 "A partida precisa estar em andamento para ser finalizada."
             )
         self.status = Status.FINISHED
-        self.save(update_fields=["status"])
+        self._calculate_points()
+        self.save(update_fields=["status", "home_points", "away_points"])
         return self.get_winner()
 
     def get_winner(self):
@@ -98,19 +101,16 @@ class Match(BaseModel):
         self.status = Status.CANCELLED
         self.save(update_fields=["status"])
 
-    def calculate_points(self):
-        if self.status != Status.FINISHED:
-            raise ValidationError(
-                "Só é possível calcular pontos de partidas finalizadas."
-            )
-
+    def _calculate_points(self):
         if self.is_draw():
-            return (1, 1)
-
-        if self.home_score > self.away_score:
-            return (3, 0)
-
-        return (0, 3)
+            self.home_points = 1
+            self.away_points = 1
+        elif self.home_score > self.away_score:
+            self.home_points = 3
+            self.away_points = 0
+        else:
+            self.home_points = 0
+            self.away_points = 3
 
     class Meta:
         verbose_name = "Partida"

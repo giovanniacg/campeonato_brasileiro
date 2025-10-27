@@ -1,5 +1,6 @@
 from factory.django import DjangoModelFactory
 from factory.faker import Faker
+from factory.declarations import SubFactory
 from leagues.models import LeagueSeason, LeagueDivision
 
 
@@ -17,4 +18,5 @@ class LeagueDivisionFactory(DjangoModelFactory):
 
     name = Faker("word", locale="pt_BR")
     parent_league = None
-    season = None
+    season = SubFactory(LeagueSeasonFactory)
+    teams = []

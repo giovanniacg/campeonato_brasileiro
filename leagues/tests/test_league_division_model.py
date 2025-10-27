@@ -40,11 +40,46 @@ def test_league_division_teams_relationship_zero():
 @pytest.mark.django_db
 def test_league_division_teams_relationship_multiple():
     league_division = LeagueDivisionFactory()
-    teams = [TeamFactory(league_division=league_division) for _ in range(3)]
+    teams = [TeamFactory() for _ in range(3)]
+    league_division.teams.set(teams)
     retrieved_teams = league_division.teams.all()
     assert retrieved_teams.count() == 3
     for team in teams:
         assert team in retrieved_teams
+
+
+@pytest.mark.django_db
+def test_team_division_retrieval():
+    league_division = LeagueDivisionFactory(name="Série C")
+    team = TeamFactory()
+    league_division.teams.add(team)
+    retrieved_division = team.league_divisions.first()
+    assert retrieved_division == league_division
+
+
+@pytest.mark.django_db
+def test_team_multiple_divisions_in_same_season():
+    season = LeagueSeasonFactory(year=2023)
+    league_division1 = LeagueDivisionFactory(name="Série A", season=season)
+    league_division2 = LeagueDivisionFactory(name="Série B", season=season)
+    team = TeamFactory()
+    league_division1.teams.add(team)
+    with pytest.raises(IntegrityError):
+        league_division2.teams.add(team)
+
+
+@pytest.mark.django_db
+def test_team_multiple_divisions_in_different_seasons():
+    season1 = LeagueSeasonFactory(year=2022)
+    season2 = LeagueSeasonFactory(year=2023)
+    league_division1 = LeagueDivisionFactory(name="Série A", season=season1)
+    league_division2 = LeagueDivisionFactory(name="Série A", season=season2)
+    team = TeamFactory()
+    league_division1.teams.add(team)
+    try:
+        league_division2.teams.add(team)
+    except IntegrityError:
+        pytest.fail("Team should be able to join divisions in different seasons")
 
 
 @pytest.mark.django_db

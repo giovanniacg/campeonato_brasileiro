@@ -1,0 +1,342 @@
+import pytest
+from django.core.exceptions import ValidationError
+from matches.tests.factories import MatchFactory
+from matches.models import Status
+from clubs.tests.factories import TeamFactory
+from leagues.tests.factories import LeagueDivisionFactory
+
+
+@pytest.mark.django_db
+def test_create_match():
+    match = MatchFactory()
+    assert match.pk is not None
+
+
+@pytest.mark.django_db
+def test_match_str_representation():
+    home_team = TeamFactory(name="Flamengo")
+    away_team = TeamFactory(name="Palmeiras")
+    match = MatchFactory(home_team=home_team, away_team=away_team)
+    assert str(match) == "Flamengo vs Palmeiras"
+
+
+@pytest.mark.django_db
+def test_match_cannot_have_same_home_and_away_team():
+    team = TeamFactory(name="Flamengo")
+    match = MatchFactory.build(home_team=team, away_team=team)
+    with pytest.raises(ValidationError) as exc_info:
+        match.full_clean()
+    assert "si mesmo" in str(exc_info.value).lower()
+
+
+@pytest.mark.django_db
+def test_match_start_partida():
+    match = MatchFactory(status=Status.SCHEDULED)
+    match.start()
+
+    assert match.status == Status.IN_PROGRESS
+
+
+@pytest.mark.django_db
+def test_match_cannot_start_if_already_started():
+    match = MatchFactory(status=Status.IN_PROGRESS)
+
+    with pytest.raises(ValidationError) as exc_info:
+        match.start()
+
+    assert "já está em andamento" in str(exc_info.value).lower()
+
+
+@pytest.mark.django_db
+def test_match_cannot_start_if_finished():
+    match = MatchFactory(status=Status.FINISHED, home_score=2, away_score=1)
+
+    with pytest.raises(ValidationError) as exc_info:
+        match.start()
+
+    assert "finalizada" in str(exc_info.value).lower()
+
+
+@pytest.mark.django_db
+def test_match_record_a_goal_home():
+    match = MatchFactory(status=Status.IN_PROGRESS)
+    match.record_a_goal(type="home")
+
+    assert match.home_score == 1
+    assert match.away_score == 0
+
+
+@pytest.mark.django_db
+def test_match_record_a_goal_away():
+    match = MatchFactory(status=Status.IN_PROGRESS)
+    match.record_a_goal(type="away")
+
+    assert match.home_score == 0
+    assert match.away_score == 1
+
+
+@pytest.mark.django_db
+def test_match_registrar_multiplos_gols():
+    match = MatchFactory(status=Status.IN_PROGRESS)
+    match.record_a_goal(type="home")
+    match.record_a_goal(type="home")
+    match.record_a_goal(type="away")
+
+    assert match.home_score == 2
+    assert match.away_score == 1
+
+
+@pytest.mark.django_db
+def test_match_cannot_record_a_goal_if_not_in_progress():
+    match = MatchFactory(status=Status.SCHEDULED)
+
+    with pytest.raises(ValidationError) as exc_info:
+        match.record_a_goal(type="home")
+
+    assert "em andamento" in str(exc_info.value).lower()
+
+
+@pytest.mark.django_db
+def test_match_finish_com_winner_home():
+    match = MatchFactory(status=Status.IN_PROGRESS, home_score=3, away_score=1)
+    winner = match.finish()
+
+    assert match.status == Status.FINISHED
+    assert winner == match.home_team
+
+
+@pytest.mark.django_db
+def test_match_finish_com_winner_away():
+    match = MatchFactory(status=Status.IN_PROGRESS, home_score=1, away_score=2)
+    winner = match.finish()
+
+    assert match.status == Status.FINISHED
+    assert winner == match.away_team
+
+
+@pytest.mark.django_db
+def test_match_finish_com_draw():
+    match = MatchFactory(status=Status.IN_PROGRESS, home_score=2, away_score=2)
+    winner = match.finish()
+
+    assert match.status == Status.FINISHED
+    assert winner is None
+
+
+@pytest.mark.django_db
+def test_match_cannot_finish_if_not_in_progress():
+    match = MatchFactory(status=Status.SCHEDULED)
+
+    with pytest.raises(ValidationError) as exc_info:
+        match.finish()
+
+    assert "em andamento" in str(exc_info.value).lower()
+
+
+@pytest.mark.django_db
+def test_match_get_winner_home_win():
+    match = MatchFactory(status=Status.FINISHED, home_score=3, away_score=1)
+
+    assert match.get_winner() == match.home_team
+
+
+@pytest.mark.django_db
+def test_match_get_winner_away_win():
+    match = MatchFactory(status=Status.FINISHED, home_score=0, away_score=2)
+
+    assert match.get_winner() == match.away_team
+
+
+@pytest.mark.django_db
+def test_match_get_winner_draw():
+    match = MatchFactory(status=Status.FINISHED, home_score=1, away_score=1)
+
+    assert match.get_winner() is None
+
+
+@pytest.mark.django_db
+def test_match_is_draw():
+    match = MatchFactory(status=Status.FINISHED, home_score=2, away_score=2)
+
+    assert match.is_draw() is True
+
+
+@pytest.mark.django_db
+def test_match_is_not_draw():
+    match = MatchFactory(status=Status.FINISHED, home_score=3, away_score=1)
+
+    assert match.is_draw() is False
+
+
+@pytest.mark.django_db
+def test_match_cancel():
+    match = MatchFactory(status=Status.SCHEDULED)
+    match.cancel()
+
+    assert match.status == Status.CANCELLED
+
+
+@pytest.mark.django_db
+def test_match_cannot_cancel_if_finished():
+    match = MatchFactory(status=Status.FINISHED, home_score=2, away_score=1)
+
+    with pytest.raises(ValidationError) as exc_info:
+        match.cancel()
+
+    assert "finalizada" in str(exc_info.value).lower()
+
+
+@pytest.mark.django_db
+def test_match_finish_calculates_points_home_win():
+    match = MatchFactory(status=Status.IN_PROGRESS, home_score=3, away_score=1)
+    match.finish()
+
+    assert match.home_points == 3
+    assert match.away_points == 0
+
+
+@pytest.mark.django_db
+def test_match_finish_calculates_points_away_win():
+    match = MatchFactory(status=Status.IN_PROGRESS, home_score=1, away_score=2)
+    match.finish()
+
+    assert match.home_points == 0
+    assert match.away_points == 3
+
+
+@pytest.mark.django_db
+def test_match_finish_calculates_points_draw():
+    match = MatchFactory(status=Status.IN_PROGRESS, home_score=2, away_score=2)
+    match.finish()
+
+    assert match.home_points == 1
+    assert match.away_points == 1
+
+
+@pytest.mark.django_db
+def test_match_finish_calculates_points_zero_zero_draw():
+    match = MatchFactory(status=Status.IN_PROGRESS, home_score=0, away_score=0)
+    match.finish()
+
+    assert match.home_points == 1
+    assert match.away_points == 1
+
+
+@pytest.mark.django_db
+def test_match_points_are_zero_before_finish():
+    match = MatchFactory(status=Status.IN_PROGRESS, home_score=3, away_score=1)
+
+    assert match.home_points == 0
+    assert match.away_points == 0
+
+
+@pytest.mark.django_db
+def test_can_create_home_and_away_matches_same_teams():
+    team1 = TeamFactory(name="Flamengo")
+    team2 = TeamFactory(name="Palmeiras")
+    division = LeagueDivisionFactory()
+
+    match1 = MatchFactory(home_team=team1, away_team=team2, league_division=division)
+    match2 = MatchFactory(home_team=team2, away_team=team1, league_division=division)
+
+    assert match1.pk is not None
+    assert match2.pk is not None
+
+
+@pytest.mark.django_db
+def test_cannot_create_duplicate_home_match():
+    team1 = TeamFactory(name="Corinthians")
+    team2 = TeamFactory(name="Santos")
+    division = LeagueDivisionFactory()
+
+    MatchFactory(
+        home_team=team1,
+        away_team=team2,
+        league_division=division,
+        status=Status.SCHEDULED,
+    )
+
+    with pytest.raises(ValidationError) as exc_info:
+        match2 = MatchFactory.build(
+            home_team=team1, away_team=team2, league_division=division
+        )
+        match2.save()
+
+    assert "já existe" in str(exc_info.value).lower()
+
+
+@pytest.mark.django_db
+def test_cannot_create_duplicate_away_match():
+    team1 = TeamFactory(name="São Paulo")
+    team2 = TeamFactory(name="Grêmio")
+    division = LeagueDivisionFactory()
+
+    MatchFactory(
+        home_team=team1,
+        away_team=team2,
+        league_division=division,
+        status=Status.FINISHED,
+    )
+
+    with pytest.raises(ValidationError) as exc_info:
+        match2 = MatchFactory.build(
+            home_team=team1, away_team=team2, league_division=division
+        )
+        match2.save()
+
+    assert "já existe" in str(exc_info.value).lower()
+
+
+@pytest.mark.django_db
+def test_can_create_match_if_previous_was_cancelled():
+    team1 = TeamFactory(name="Atlético-MG")
+    team2 = TeamFactory(name="Cruzeiro")
+    division = LeagueDivisionFactory()
+
+    match1 = MatchFactory(
+        home_team=team1,
+        away_team=team2,
+        league_division=division,
+        status=Status.SCHEDULED,
+    )
+    match1.cancel()
+
+    match2 = MatchFactory(home_team=team1, away_team=team2, league_division=division)
+
+    assert match2.pk is not None
+
+
+@pytest.mark.django_db
+def test_cannot_duplicate_match_in_progress():
+    team1 = TeamFactory(name="Botafogo")
+    team2 = TeamFactory(name="Vasco")
+    division = LeagueDivisionFactory()
+
+    MatchFactory(
+        home_team=team1,
+        away_team=team2,
+        league_division=division,
+        status=Status.IN_PROGRESS,
+    )
+
+    with pytest.raises(ValidationError) as exc_info:
+        match2 = MatchFactory.build(
+            home_team=team1, away_team=team2, league_division=division
+        )
+        match2.save()
+
+    assert "já existe" in str(exc_info.value).lower()
+
+
+@pytest.mark.django_db
+def test_can_have_matches_in_different_divisions():
+    team1 = TeamFactory(name="Internacional")
+    team2 = TeamFactory(name="Juventude")
+    division1 = LeagueDivisionFactory(name="Série A")
+    division2 = LeagueDivisionFactory(name="Copa do Brasil")
+
+    match1 = MatchFactory(home_team=team1, away_team=team2, league_division=division1)
+    match2 = MatchFactory(home_team=team1, away_team=team2, league_division=division2)
+
+    assert match1.pk is not None
+    assert match2.pk is not None
